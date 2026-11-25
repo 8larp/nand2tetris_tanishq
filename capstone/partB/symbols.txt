@@ -1,10 +1,12 @@
-=========================================================
-Symbol Table Dump (Extra Feature: K = 9, K mod 3 = 0)
-Source File: Add.asm
-=========================================================
+Source File: Box.asm
 
---- Labels (ROM Addresses) ---
-(None)
+Labels (ROM Addresses):
+LOOP                     : 0
+SET_BLACK                : 8
+INIT_DRAW                : 10
+ROW_LOOP                 : 18
 
---- Variables (RAM Addresses) ---
-(None)
+Variables (RAM Addresses):
+color                    : 16
+addr                     : 17
+rows                     : 18
