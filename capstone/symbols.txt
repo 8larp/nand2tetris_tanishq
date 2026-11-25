@@ -1,0 +1,10 @@
+=========================================================
+Symbol Table Dump (Extra Feature: K = 9, K mod 3 = 0)
+Source File: Add.asm
+=========================================================
+
+--- Labels (ROM Addresses) ---
+(None)
+
+--- Variables (RAM Addresses) ---
+(None)

@@ -1,0 +1,88 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+// Capstone Project - Part A
+// Student: Tanishq | Roll No: 2501410009 | K = 9
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    // Decode instruction type: instruction[15] == 0 -> A-instruction, 1 -> C-instruction
+    Not(in=instruction[15], out=isAInst);
+    
+    // Mux16 feeding A-Register: selects either instruction (for A-inst) or ALU output (for C-inst with d1=instruction[5])
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=inAReg);
+
+    // Load A-Register if A-instruction OR (C-instruction AND dest includes A: instruction[5] == 1)
+    Or(a=isAInst, b=instruction[5], out=loadA);
+    ARegister(in=inAReg, load=loadA, out=outA, out[0..14]=addressM);
+
+    // Mux16 selecting A or M for ALU y-input based on 'a' bit (instruction[12])
+    Mux16(a=outA, b=inM, sel=instruction[12], out=aluY);
+
+    // Load D-Register if C-instruction AND dest includes D (instruction[4] == 1)
+    And(a=instruction[15], b=instruction[4], out=loadD);
+    DRegister(in=aluOut, load=loadD, out=outD);
+
+    // ALU computation controlled by c1..c6 (instruction[11..6])
+    ALU(x=outD, y=aluY,
+        zx=instruction[11], nx=instruction[10],
+        zy=instruction[9],  ny=instruction[8],
+        f=instruction[7],   no=instruction[6],
+        out=aluOut, out=outM,
+        zr=zrOut, ng=ngOut);
+
+    // writeM is asserted if C-instruction AND dest includes M (instruction[3] == 1)
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    // Jump logic: determine if ALU output is positive (> 0)
+    Or(a=zrOut, b=ngOut, out=zrOrNg);
+    Not(in=zrOrNg, out=posOut);
+
+    // Check individual jump conditions (j1=instruction[2], j2=instruction[1], j3=instruction[0])
+    And(a=instruction[2], b=ngOut, out=jlt);
+    And(a=instruction[1], b=zrOut, out=jeq);
+    And(a=instruction[0], b=posOut, out=jgt);
+
+    // Combine jump conditions and ensure it is a C-instruction
+    Or(a=jlt, b=jeq, out=jle);
+    Or(a=jle, b=jgt, out=jmpCond);
+    And(a=instruction[15], b=jmpCond, out=loadPC);
+
+    // Program Counter: if loadPC==1 jump to A, else increment, or reset to 0 if reset==1
+    PC(in=outA, load=loadPC, inc=true, reset=reset, out[0..14]=pc);
+}
